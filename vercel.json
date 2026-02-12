@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/AudioMoth_Universal_Config.html" }
+  ]
+}
