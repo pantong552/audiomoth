@@ -511,10 +511,12 @@
                 <!-- Connection Section Moved to Bottom -->
                 <div id="connectionSection" class="btn-group"
                     style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                    <button id="btnWebUSB" onclick="connect('usb')" title="For Android Chrome (OTG Cable)">🔗 Connect
-                        (WebUSB)</button>
-                    <button id="btnWebHID" class="secondary" onclick="connect('hid')" title="For Windows/Mac Chrome">💻
-                        Connect (WebHID)</button>
+                    <button id="btnWebHID" onclick="connect('hid')"
+                        title="Recommended for all platforms (Windows/Mac/Android)">🔗 Connect
+                        (WebHID)</button>
+                    <button id="btnWebUSB" class="secondary" onclick="connect('usb')"
+                        title="WebUSB fallback (limited on Android)">💻
+                        Connect (WebUSB)</button>
                     <button class="secondary" onclick="connect('hid', true)"
                         style="font-size: 10px; padding: 8px; margin-top: 4px; opacity: 0.7;">🔍 Manual Connect
                         (Adv)</button>
@@ -830,11 +832,6 @@
             } catch (err) {
                 log(`❌ Connection Failed: ${err.message}`);
                 console.error(err);
-
-                if (err.message.includes("Protected class") || err.message.includes("claimInterface")) {
-                    log("💡 TIP: On Android, try enabling WebHID:");
-                    log("   chrome://flags/#enable-webhid-on-android");
-                }
                 return false; // Failed
             }
         }
@@ -929,7 +926,7 @@
                     // WebUSB 發送: Control Transfer
                     await currentDevice.controlTransferOut({
                         requestType: 'class',
-                        recipient: 'device', // Bypass 'interface' claim check (requires firmware support)
+                        recipient: 'interface',
                         request: 0x09,
                         value: 0x0200,
                         index: 0
@@ -994,13 +991,9 @@
                     // --- WebUSB Logic (Android) ---
                     // Use Class-specific Control Transfer (SET_REPORT)
                     log(`[TX-USB] Cmd: ${hex(msgType)} (SET_REPORT)`);
-
-                    // Attempt recipient: 'device' to bypass "interface not claimed" error
-                    // Standard HID expects 'interface', but Chrome blocks it.
-                    // Some firmware handles 'device' recipient if index is 0.
                     await currentDevice.controlTransferOut({
                         requestType: 'class',
-                        recipient: 'device',
+                        recipient: 'interface',
                         request: 0x09, // SET_REPORT
                         value: 0x0200, // Output Report
                         index: 0
@@ -1010,7 +1003,7 @@
                     // Attempt to read back the response immediately
                     const result = await currentDevice.controlTransferIn({
                         requestType: 'class',
-                        recipient: 'device',
+                        recipient: 'interface',
                         request: 0x01, // GET_REPORT
                         value: 0x0100, // Input Report
                         index: 0
@@ -1331,32 +1324,25 @@
                 log("⚠️ 警告: 非 Chrome 核心可能無法連線。");
             }
 
-            // 更新 UI 推薦標記
+            // AudioMoth is an HID device - WebHID is the correct API on ALL platforms
+            // WebUSB cannot access HID-class interfaces (Protected Class restriction)
+            document.getElementById('btnWebHID').textContent = "🔗 Connect (WebHID)";
+
             if (isAndroid) {
-                document.getElementById('btnWebUSB').textContent += " (Recommended)";
-                document.getElementById('usbHint').style.color = "#1a73e8";
-                document.getElementById('usbHint').style.fontWeight = "bold";
-
-                // 嘗試自動連線 (需先前有配對)
-                if (navigator.usb) {
-                    const paired = await navigator.usb.getDevices();
-                    if (paired.length > 0) {
-                        const target = paired.find(d => d.vendorId === DEFAULT_VID);
-                        if (target) autoConnected = await connect('usb', false, target);
-                    }
-                }
-            } else if (isWindows) {
-                document.getElementById('btnWebHID').textContent += " (Recommended)";
-                document.getElementById('hidHint').style.color = "#1a73e8";
-                document.getElementById('hidHint').style.fontWeight = "bold";
-
-                // 嘗試自動連線 (需先前有配對)
                 if (navigator.hid) {
-                    const paired = await navigator.hid.getDevices();
-                    if (paired.length > 0) {
-                        const target = paired.find(d => d.vendorId === DEFAULT_VID || d.vendorId === 0x10C4);
-                        if (target) autoConnected = await connect('hid', false, target);
-                    }
+                    document.getElementById('btnWebHID').textContent += " ✅ Recommended";
+                    log("💡 Android Chrome 偵測到 WebHID 支援，建議使用 WebHID 連線。");
+                } else {
+                    log("⚠️ 此版本 Android Chrome 不支援 WebHID，請更新至 Chrome 100+。");
+                }
+            }
+
+            // 嘗試自動連線 (需先前有配對) - 統一使用 WebHID
+            if (navigator.hid) {
+                const paired = await navigator.hid.getDevices();
+                if (paired.length > 0) {
+                    const target = paired.find(d => d.vendorId === DEFAULT_VID || d.vendorId === 0x10C4);
+                    if (target) autoConnected = await connect('hid', false, target);
                 }
             }
 
