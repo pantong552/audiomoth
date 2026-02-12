@@ -756,10 +756,24 @@
                         device = preSelectedDevice;
                         log("♻️ Auto-reconnecting paired USB device...");
                     } else {
-                        log("Requesting USB permission...");
-                        const filter = { vendorId: checkVID };
-                        if (checkPID) filter.productId = checkPID;
-                        device = await navigator.usb.requestDevice({ filters: [filter] });
+                        log("Requesting USB permission (Enhanced Filters)...");
+
+                        // Use a filter list similar to WebHID's approach
+                        let filters = [
+                            { vendorId: 0x16D0, productId: 0x1052 }, // AudioMoth Default
+                            { vendorId: 0x16D0 },                   // AudioMoth Vendor Any
+                            { vendorId: 0x10C4 }                    // Silicon Labs (used in some variants)
+                        ];
+
+                        // Add manual overrides if available
+                        const mVID = parseInt(document.getElementById('manualVID').value, 16);
+                        const mPID = parseInt(document.getElementById('manualPID').value, 16);
+                        if (!isNaN(mVID)) {
+                            log(`Adding manual USB filter - VID: 0x${mVID.toString(16).toUpperCase()}`);
+                            filters.unshift(mPID ? { vendorId: mVID, productId: mPID } : { vendorId: mVID });
+                        }
+
+                        device = await navigator.usb.requestDevice({ filters: filters });
                     }
 
                     await device.open();
@@ -769,7 +783,7 @@
                     log(`✅ USB Connected: ${device.productName || 'Device'}`);
 
                     setConnectedState(true);
-                    return true; // 連線成功
+                    return true;
                 }
                 else if (type === 'hid') {
                     if (!navigator.hid) throw new Error("This browser does not support WebHID");
