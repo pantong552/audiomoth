@@ -830,6 +830,11 @@
             } catch (err) {
                 log(`❌ Connection Failed: ${err.message}`);
                 console.error(err);
+
+                if (err.message.includes("Protected class") || err.message.includes("claimInterface")) {
+                    log("💡 TIP: On Android, try enabling WebHID:");
+                    log("   chrome://flags/#enable-webhid-on-android");
+                }
                 return false; // Failed
             }
         }
@@ -924,7 +929,7 @@
                     // WebUSB 發送: Control Transfer
                     await currentDevice.controlTransferOut({
                         requestType: 'class',
-                        recipient: 'interface',
+                        recipient: 'device', // Bypass 'interface' claim check (requires firmware support)
                         request: 0x09,
                         value: 0x0200,
                         index: 0
@@ -989,9 +994,13 @@
                     // --- WebUSB Logic (Android) ---
                     // Use Class-specific Control Transfer (SET_REPORT)
                     log(`[TX-USB] Cmd: ${hex(msgType)} (SET_REPORT)`);
+
+                    // Attempt recipient: 'device' to bypass "interface not claimed" error
+                    // Standard HID expects 'interface', but Chrome blocks it.
+                    // Some firmware handles 'device' recipient if index is 0.
                     await currentDevice.controlTransferOut({
                         requestType: 'class',
-                        recipient: 'interface',
+                        recipient: 'device',
                         request: 0x09, // SET_REPORT
                         value: 0x0200, // Output Report
                         index: 0
@@ -1001,7 +1010,7 @@
                     // Attempt to read back the response immediately
                     const result = await currentDevice.controlTransferIn({
                         requestType: 'class',
-                        recipient: 'interface',
+                        recipient: 'device',
                         request: 0x01, // GET_REPORT
                         value: 0x0100, // Input Report
                         index: 0
