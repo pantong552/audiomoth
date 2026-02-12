@@ -511,12 +511,10 @@
                 <!-- Connection Section Moved to Bottom -->
                 <div id="connectionSection" class="btn-group"
                     style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                    <button id="btnWebHID" onclick="connect('hid')"
-                        title="Recommended for all platforms (Windows/Mac/Android)">🔗 Connect
-                        (WebHID)</button>
-                    <button id="btnWebUSB" class="secondary" onclick="connect('usb')"
-                        title="WebUSB fallback (limited on Android)">💻
-                        Connect (WebUSB)</button>
+                    <button id="btnWebUSB" onclick="connect('usb')" title="For Android Chrome (OTG Cable)">🔗 Connect
+                        (WebUSB)</button>
+                    <button id="btnWebHID" class="secondary" onclick="connect('hid')" title="For Windows/Mac Chrome">💻
+                        Connect (WebHID)</button>
                     <button class="secondary" onclick="connect('hid', true)"
                         style="font-size: 10px; padding: 8px; margin-top: 4px; opacity: 0.7;">🔍 Manual Connect
                         (Adv)</button>
@@ -779,17 +777,10 @@
                     }
 
                     await device.open();
-
-                    try {
-                        await device.claimInterface(0);
-                        log("✅ USB Connected: Interface claimed.");
-                    } catch (interfaceErr) {
-                        log(`⚠️ USB Interface Access Limited: ${interfaceErr.message}`);
-                        log("💡 This is normal on mobile. Control transfers will still be attempted.");
-                    }
-
+                    await device.claimInterface(0);
                     currentDevice = device;
                     connectionType = 'usb';
+                    log(`✅ USB Connected: ${device.productName || 'Device'}`);
 
                     setConnectedState(true);
                     return true;
@@ -975,48 +966,24 @@
 
         async function sendGetCommand(msgType) {
             if (!currentDevice) return;
+            // const useCP2110 = document.getElementById('chkCP2110').checked; // Removed in redesign
 
-            // Prepare 64 bytes buffer (matches C's memset)
+            // 準備 64 bytes buffer (模擬 C 的 memset)
             const sendBuffer = new Uint8Array(64);
+
+            // 根據 WebHID 規範與 Windows 實測:
+            // sendReport(0, data) -> Wire 會看到 [0x00, data[0], data[1]...]
+            // 所以 sendBuffer[0] 必須直接是命令類型 (MsgType)
+
             sendBuffer[0] = msgType;
 
+            log(`[TX-HID] Cmd: ${hex(msgType)} (WebHID ID 0, Data[0]=${hex(msgType)})`);
+
             try {
-                if (connectionType === 'hid') {
-                    // --- WebHID Logic (Windows/Mac) ---
-                    // sendReport(0, data) -> Wire shows [0x00, data[0], data[1]...]
-                    log(`[TX-HID] Cmd: ${hex(msgType)}`);
-                    await currentDevice.sendReport(0, sendBuffer);
-                }
-                else if (connectionType === 'usb') {
-                    // --- WebUSB Logic (Android) ---
-                    // Use Class-specific Control Transfer (SET_REPORT)
-                    log(`[TX-USB] Cmd: ${hex(msgType)} (SET_REPORT)`);
-                    await currentDevice.controlTransferOut({
-                        requestType: 'class',
-                        recipient: 'interface',
-                        request: 0x09, // SET_REPORT
-                        value: 0x0200, // Output Report
-                        index: 0
-                    }, sendBuffer);
-
-                    // AudioMoth HID protocol: Response is available via GET_REPORT
-                    // Attempt to read back the response immediately
-                    const result = await currentDevice.controlTransferIn({
-                        requestType: 'class',
-                        recipient: 'interface',
-                        request: 0x01, // GET_REPORT
-                        value: 0x0100, // Input Report
-                        index: 0
-                    }, 64);
-
-                    if (result && result.data) {
-                        const rawData = new Uint8Array(result.data.buffer);
-                        log(`[RX-USB] Data received, length: ${rawData.length}`);
-                        processPacket(rawData);
-                    }
-                }
+                // 傳送 Report ID 0 (WebHID API 會自動處理 Report ID)
+                await currentDevice.sendReport(0, sendBuffer);
             } catch (e) {
-                log(`⚠️ 發送/讀取指令失敗: ${e.message}`);
+                log(`⚠️ 發送指令失敗: ${e.message}`);
                 console.error(e);
             }
         }
@@ -1219,17 +1186,16 @@
 
         function handleInputReport(e) {
             const raw = new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength);
-            processPacket(raw);
-        }
 
-        /**
-         * Unified Packet Processor 
-         * Handles both HID InputReports and USB Control Transfers
-         */
-        function processPacket(raw) {
+            // console.log(`[RX-RAW] ID: ${e.reportId} Len: ${raw.length}`, raw);
+
             let dataPayload;
 
-            // Windows WebHID behavior: Check for leading 0x00 Report ID padding
+            // 根據 audiomoth-hid.js 與 USB-HID-Tool windows/hid.c 分析:
+            // Windows 上若 Report ID 為 0，讀取到的 Buffer 第一個 byte 為 0x00
+            // hid.c 會跳過這個 byte。
+            // 我們在此模擬該行為：檢查首字節是否為 0x00，若是則跳過。
+
             if (raw.length > 0 && raw[0] === 0x00) {
                 dataPayload = raw.slice(1);
             } else {
@@ -1324,25 +1290,32 @@
                 log("⚠️ 警告: 非 Chrome 核心可能無法連線。");
             }
 
-            // AudioMoth is an HID device - WebHID is the correct API on ALL platforms
-            // WebUSB cannot access HID-class interfaces (Protected Class restriction)
-            document.getElementById('btnWebHID').textContent = "🔗 Connect (WebHID)";
-
+            // 更新 UI 推薦標記
             if (isAndroid) {
-                if (navigator.hid) {
-                    document.getElementById('btnWebHID').textContent += " ✅ Recommended";
-                    log("💡 Android Chrome 偵測到 WebHID 支援，建議使用 WebHID 連線。");
-                } else {
-                    log("⚠️ 此版本 Android Chrome 不支援 WebHID，請更新至 Chrome 100+。");
-                }
-            }
+                document.getElementById('btnWebUSB').textContent += " (Recommended)";
+                document.getElementById('usbHint').style.color = "#1a73e8";
+                document.getElementById('usbHint').style.fontWeight = "bold";
 
-            // 嘗試自動連線 (需先前有配對) - 統一使用 WebHID
-            if (navigator.hid) {
-                const paired = await navigator.hid.getDevices();
-                if (paired.length > 0) {
-                    const target = paired.find(d => d.vendorId === DEFAULT_VID || d.vendorId === 0x10C4);
-                    if (target) autoConnected = await connect('hid', false, target);
+                // 嘗試自動連線 (需先前有配對)
+                if (navigator.usb) {
+                    const paired = await navigator.usb.getDevices();
+                    if (paired.length > 0) {
+                        const target = paired.find(d => d.vendorId === DEFAULT_VID);
+                        if (target) autoConnected = await connect('usb', false, target);
+                    }
+                }
+            } else if (isWindows) {
+                document.getElementById('btnWebHID').textContent += " (Recommended)";
+                document.getElementById('hidHint').style.color = "#1a73e8";
+                document.getElementById('hidHint').style.fontWeight = "bold";
+
+                // 嘗試自動連線 (需先前有配對)
+                if (navigator.hid) {
+                    const paired = await navigator.hid.getDevices();
+                    if (paired.length > 0) {
+                        const target = paired.find(d => d.vendorId === DEFAULT_VID || d.vendorId === 0x10C4);
+                        if (target) autoConnected = await connect('hid', false, target);
+                    }
                 }
             }
 
