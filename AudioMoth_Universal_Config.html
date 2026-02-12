@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AudioMoth USB Microphone Config</title>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --card-bg: #1a1a1a;
+            --panel-bg: #141414;
+            --text-color: #e0e0e0;
+            --text-muted: #888;
+            --accent-color: #ffe600;
+            --accent-hover: #e6cf00;
+            --border-color: #333;
+            --input-bg: #222;
+            --success-color: #00e676;
+            --error-color: #ff5252;
+            --radius: 8px;
+            --spacing: 16px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.4;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing);
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            color: #ffe600;
+            margin: 0;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+
+        .status-indicator {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(255, 82, 82, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(255, 82, 82, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .status-indicator.connected {
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--success-color);
+            border-color: rgba(0, 230, 118, 0.2);
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing);
+        }
+
+        @media (max-width: 700px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #ffe600;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--accent-color);
+            padding-bottom: 8px;
+        }
+
+        /* Input Controls */
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        select,
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus,
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* Connection Buttons */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 4px;
+            border: none;
+            background: var(--accent-color);
+            color: #000;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: filter 0.2s;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            filter: none;
+        }
+
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        button.secondary:hover {
+            border-color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Info List */
+        .info-list {
+            margin-top: 16px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #222;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-key {
+            color: var(--text-muted);
+        }
+
+        .info-val {
+            font-family: 'Consolas', monospace;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* Config Grid */
+        .config-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        /* Toggle Switches */
+        .toggles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            background: var(--panel-bg);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #282828;
+        }
+
+        .toggle-item:last-child {
+            border-bottom: none;
+        }
+
+        .toggle-label {
+            font-size: 13px;
+            color: var(--text-color);
+        }
+
+        .switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            transition: .3s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #aaa;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(16px);
+            background-color: #000;
+        }
+
+        /* Action Footer */
+        .actions {
+            margin-top: 0;
+        }
+
+        /* Terminal */
+        #status {
+            margin-top: 0;
+            padding: 12px;
+            background: #000;
+            border-radius: var(--radius);
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            color: #888;
+            height: 100px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            white-space: pre-wrap;
+        }
+
+        /* Refresh Button SVG Styling */
+        .refresh-icon {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+            transition: color 0.2s, transform 0.3s;
+        }
+
+        .refresh-icon:hover {
+            color: var(--accent-color);
+            transform: rotate(180deg);
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+            /* Disable track clicking/jumping globally. */
+            pointer-events: none;
+            /* Ensure inputs are stacked properly and take up no height themselves to overlay */
+            position: absolute;
+            top: 0;
+            left: 0;
+            margin: 0;
+            padding: 0;
+            height: 30px;
+            /* Match container height for centering thumb */
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            /* Slightly larger */
+            width: 16px;
+            border-radius: 50%;
+            background: #ff9800;
+            cursor: pointer;
+            border: 2px solid #000;
+            position: relative;
+            z-index: 100;
+            /* Extremely high to be on top */
+            pointer-events: auto;
+            margin-top: 0;
+            /* Remove manual offset, use centering logic below */
+        }
+
+        /* Essential for centering thumb on the range line */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 30px;
+            /* Same as input height */
+            cursor: pointer;
+            background: transparent;
+            border: none;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        /* Enable interaction ONLY on the thumb */
+        input[type=range]::-webkit-slider-thumb {
+            pointer-events: auto;
+        }
+
+        .filter-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        /* When disabled container, disable thumb too */
+        .filter-disabled input[type=range]::-webkit-slider-thumb {
+            pointer-events: none;
+        }
+
+        .hide-thumb::-webkit-slider-thumb {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Hardware Interface Grouping Styles */
+        .info-group {
+            margin-bottom: 20px;
+        }
+
+        .info-group:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .group-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #888;
+            letter-spacing: 1.2px;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 230, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>AudioMoth USB Microphone Config Tool</h1>
+            <div id="deviceConnectionStatus" class="status-indicator">🔴 Disconnected</div>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left Card: Hardware Interface -->
+            <div class="card">
+                <div class="card-header">
+                    <span>Hardware Interface</span>
+                    <svg id="btnRefresh" class="refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                        onclick="refreshDeviceInfo()" style="display:none;">
+                        <path d="M23 4v6h-6"></path>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                </div>
+
+                <!-- connectionSection moved to bottom -->
+
+                <!-- DEVICE INFO -->
+                <div class="info-group">
+                    <div class="group-label">Device Info</div>
+                    <div class="info-list" style="margin-top: 0; border-top: none;">
+                        <div class="info-row">
+                            <span class="info-key">Device ID</span>
+                            <span id="infoDeviceId" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Firmware</span>
+                            <span id="infoFirmwareVersion" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Battery</span>
+                            <span id="infoBattery" class="info-val">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACOUSTIC SETTINGS -->
+                <div class="info-group">
+                    <div class="group-label">Acoustic Settings</div>
+                    <div class="info-list" style="margin-top: 0; border-top: none;">
+                        <div class="info-row">
+                            <span class="info-key">Sample Rate</span>
+                            <span id="infoSampleRate" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Gain</span>
+                            <span id="infoGain" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Filter</span>
+                            <span id="infoFilter" class="info-val">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADVANCED STATUS -->
+                <div class="info-group">
+                    <div class="group-label">Advanced Status</div>
+                    <div class="info-list" style="margin-top: 0; border-top: none;">
+                        <div class="info-row">
+                            <span class="info-key">Energy Saver</span>
+                            <span id="infoEnergySaver" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">48Hz DC Filter</span>
+                            <span id="infoDCFilter" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Low Gain Range</span>
+                            <span id="infoLowGain" class="info-val">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">LED Indicator</span>
+                            <span id="infoLEDIndicator" class="info-val">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connection Section Moved to Bottom -->
+                <div id="connectionSection" class="btn-group"
+                    style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <button id="btnWebUSB" onclick="connect('usb')" title="For Android Chrome (OTG Cable)">🔗 Connect
+                        (WebUSB)</button>
+                    <button id="btnWebHID" class="secondary" onclick="connect('hid')" title="For Windows/Mac Chrome">💻
+                        Connect (WebHID)</button>
+                    <button class="secondary" onclick="connect('hid', true)"
+                        style="font-size: 10px; padding: 8px; margin-top: 4px; opacity: 0.7;">🔍 Manual Connect
+                        (Adv)</button>
+                </div>
+
+                <div style="display:none;">
+                    <input type="text" id="manualVID" value="16D0">
+                    <input type="text" id="manualPID" value="1052">
+                    <div id="usbHint"></div>
+                    <div id="hidHint"></div>
+                    <!-- connectionSection removed to avoid duplicate ID -->
+                </div>
+            </div>
+
+            <!-- Right Card: Acoustic Config -->
+            <div class="card">
+                <div class="card-header">Acoustic Configuration</div>
+
+                <div class="config-row">
+                    <div>
+                        <label>Sample Rate</label>
+                        <select id="sampleRate" onchange="updateSampleRateLimits()">
+                            <option value="0">8 kHz</option>
+                            <option value="1">16 kHz</option>
+                            <option value="2">32 kHz</option>
+                            <option value="3">48 kHz</option>
+                            <option value="4">96 kHz</option>
+                            <option value="5">192 kHz</option>
+                            <option value="6">250 kHz</option>
+                            <option value="7" selected>384 kHz</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Gain</label>
+                        <select id="gain">
+                            <option value="0">Low</option>
+                            <option value="1">Low-Medium</option>
+                            <option value="2" selected>Medium</option>
+                            <option value="3">Medium-High</option>
+                            <option value="4">High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Filter Configuration -->
+                <div style="margin-bottom: 20px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">Filter Type</label>
+                        <div style="display: flex; gap: 12px; font-size: 11px;">
+                            <label
+                                style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer; text-transform: uppercase;">
+                                <input type="radio" name="filterMode" value="3" checked onclick="updateFilterUI()"
+                                    style="width: auto;"> None
+                            </label>
+                            <label
+                                style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer; text-transform: uppercase;">
+                                <input type="radio" name="filterMode" value="0" onclick="updateFilterUI()"
+                                    style="width: auto;"> Low
+                            </label>
+                            <label
+                                style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer; text-transform: uppercase;">
+                                <input type="radio" name="filterMode" value="1" onclick="updateFilterUI()"
+                                    style="width: auto;"> Band
+                            </label>
+                            <label
+                                style="display: flex; align-items: center; gap: 4px; margin: 0; cursor: pointer; text-transform: uppercase;">
+                                <input type="radio" name="filterMode" value="2" onclick="updateFilterUI()"
+                                    style="width: auto;"> High
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="filterControlContainer"
+                        style="background: var(--panel-bg); padding: 12px; border-radius: 4px;">
+                        <div id="dualSliderWrapper"
+                            style="position: relative; height: 30px; display: flex; align-items: center;">
+                            <!-- Slider Track (Visual Only) -->
+                            <div
+                                style="position: absolute; width: 100%; height: 4px; background: #333; border-radius: 2px;">
+                            </div>
+                            <!-- Active Range Highlight -->
+                            <div id="sliderHighlight"
+                                style="position: absolute; height: 5px; background: var(--accent-color); border-radius: 2px;">
+                            </div>
+
+                            <!-- Low Input -->
+                            <input type="range" id="rngLowCutoff" class="range-slider dual-handle" min="0" max="192000"
+                                step="100" value="0" oninput="updateFilterLabel('low')"
+                                style="position: absolute; top: 7px; pointer-events: none; z-index: 2;">
+
+                            <!-- High Input -->
+                            <input type="range" id="rngHighCutoff" class="range-slider dual-handle" min="0" max="192000"
+                                step="100" value="192000" oninput="updateFilterLabel('high')"
+                                style="position: absolute; top: 7px; pointer-events: none; z-index: 1;">
+                        </div>
+
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-top: 4px;">
+                            <span id="lblMinCap">0 kHz</span>
+                            <span id="lblFilterDesc" style="color: var(--text-color); font-weight: 600;">Recordings will
+                                not be filtered.</span>
+                            <span id="lblMaxCap">192 kHz</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toggles-list">
+                    <div class="toggle-item">
+                        <span class="toggle-label">Energy Saver Mode</span>
+                        <label class="switch">
+                            <input type="checkbox" id="chkEnergySaver">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <span class="toggle-label">Disable 48Hz Filter</span>
+                        <label class="switch">
+                            <input type="checkbox" id="chkDisable48Filter">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <span class="toggle-label">Low Gain Range</span>
+                        <label class="switch">
+                            <input type="checkbox" id="chkLowGainRange">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-item">
+                        <span class="toggle-label">LED Indicator</span>
+                        <label class="switch">
+                            <input type="checkbox" id="chkDisableLED" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="btnWrite" onclick="writeConfig()" disabled style="height: 48px; font-size: 14px;">⚡
+                        Configure Microphone</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="status">Waiting for connection...</div>
+
+        <!-- Hidden Elements cleaned up to avoid ID conflicts -->
+        <!-- Only keeping necessary hidden inputs if any (none needed for info fields as they exist in DOM) -->
+    </div>
+
+    <script>
+        // --- 1. Constants and Parameters ---
+        const PRODUCTID_MIC = 0x81C0;
+
+        const USB_MSG_TYPE_GET_TIME = 0x01;
+        const USB_MSG_TYPE_GET_UID = 0x03;
+        const USB_MSG_TYPE_GET_BATTERY = 0x04;
+        const USB_MSG_TYPE_GET_APP_PACKET = 0x05;
+        const USB_MSG_TYPE_SET_APP_PACKET = 0x06; // Set configuration command
+        const USB_MSG_TYPE_GET_FIRMWARE_VERSION = 0x07;
+        const USB_MSG_TYPE_GET_FIRMWARE_DESCRIPTION = 0x08;
+
+        const GAIN_TEXTS = ["Low", "Low-Medium", "Medium", "Medium-High", "High"];
+
+        // Sample Rate Configs
+        const DEFAULT_VID = 0x16D0;
+        const DEFAULT_PID = 0x1052;
+        const ALTERNATE_VID = 0x10C4; // Silicon Labs
+
+        const CONFIGS = [
+            { id: 0, text: "8kHz", base: 384000, div: 48, clock: 4, acq: 16, over: 1 },
+            { id: 1, text: "16kHz", base: 384000, div: 24, clock: 4, acq: 16, over: 1 },
+            { id: 2, text: "32kHz", base: 384000, div: 12, clock: 4, acq: 16, over: 1 },
+            { id: 3, text: "48kHz", base: 384000, div: 8, clock: 4, acq: 16, over: 1 },
+            { id: 4, text: "96kHz", base: 384000, div: 4, clock: 4, acq: 16, over: 1 },
+            { id: 5, text: "192kHz", base: 384000, div: 2, clock: 4, acq: 16, over: 1 },
+            { id: 6, text: "250kHz", base: 250000, div: 1, clock: 4, acq: 16, over: 1 },
+            { id: 7, text: "384kHz", base: 384000, div: 1, clock: 4, acq: 16, over: 1 }
+        ];
+
+        // --- 2. Global Variables ---
+        let currentDevice = null;
+        let connectionType = null; // 'usb' or 'hid'
+        let versionPacketLength = 19; // Default 19 (newer firmware), fallback to 18 if detection fails
+
+        // --- 3. UI Interaction Logic ---
+        function log(msg) {
+            const el = document.getElementById('status');
+            el.textContent += msg + "\n";
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('status').textContent = "";
+        }
+
+
+        function setConnectedState(isConnected) {
+            document.getElementById('btnWebUSB').disabled = isConnected;
+            document.getElementById('btnWebHID').disabled = isConnected;
+            // Also disabled manual connect button if possible, but currently no ID for it
+            const manualBtn = document.querySelector('button[onclick*="hid\', true"]');
+            if (manualBtn) manualBtn.disabled = isConnected;
+
+            document.getElementById('btnWrite').disabled = !isConnected;
+
+            const statusEl = document.getElementById('deviceConnectionStatus');
+            const refreshBtn = document.getElementById('btnRefresh');
+
+            if (isConnected) {
+                statusEl.textContent = "🟢 Connected";
+                statusEl.classList.add('connected');
+                statusEl.style.color = ""; // Use CSS class color
+                if (refreshBtn) refreshBtn.style.display = 'block';
+            } else {
+                statusEl.textContent = "🔴 Disconnected";
+                statusEl.classList.remove('connected');
+                statusEl.style.color = ""; // Use CSS class color
+                if (refreshBtn) refreshBtn.style.display = 'none';
+            }
+        }
+
+        // --- 4. Core Connection Logic ---
+        async function connect(type, isManual = false, preSelectedDevice = null) {
+            clearLog();
+            try {
+                let checkVID = DEFAULT_VID;
+                let checkPID = DEFAULT_PID;
+
+                if (isManual) {
+                    // ... 手動模式邏輯維持不變 ...
+                }
+
+                if (type === 'usb') {
+                    if (!navigator.usb) throw new Error("This browser does not support WebUSB");
+
+                    if (preSelectedDevice) {
+                        device = preSelectedDevice;
+                        log("♻️ Auto-reconnecting paired USB device...");
+                    } else {
+                        log("Requesting USB permission...");
+                        const filter = { vendorId: checkVID };
+                        if (checkPID) filter.productId = checkPID;
+                        device = await navigator.usb.requestDevice({ filters: [filter] });
+                    }
+
+                    await device.open();
+                    await device.claimInterface(0);
+                    currentDevice = device;
+                    connectionType = 'usb';
+                    log(`✅ USB Connected: ${device.productName || 'Device'}`);
+
+                    setConnectedState(true);
+                    return true; // 連線成功
+                }
+                else if (type === 'hid') {
+                    if (!navigator.hid) throw new Error("This browser does not support WebHID");
+
+                    let device;
+                    if (preSelectedDevice) {
+                        device = preSelectedDevice;
+                        log("♻️ Auto-reconnecting paired HID device...");
+                    } else {
+                        log("Requesting HID permission...");
+                        let filters = isManual ? [{ vendorId: checkVID }] : [
+                            { vendorId: 0x16D0, productId: 0x1052 },
+                            { vendorId: 0x16D0 },
+                            { vendorId: 0x10C4 }
+                        ];
+                        const devices = await navigator.hid.requestDevice({ filters: filters });
+                        if (devices.length === 0) throw new Error("No device selected");
+                        device = devices[0];
+                    }
+
+                    log(`Opening device: ${device.productName || 'HID Device'}...`);
+                    await device.open();
+                    currentDevice = device;
+                    connectionType = 'hid';
+                    log(`✅ HID Connected: ${device.productName}`);
+
+                    setConnectedState(true);
+
+                    if (device.vendorId === 0x10C4) {
+                        log("✨ Silicon Labs optimized protocol auto-configured.");
+                    }
+
+                    device.addEventListener("inputreport", handleInputReport);
+                    refreshDeviceInfo();
+                    return true; // 連線成功
+                }
+            } catch (err) {
+                log(`❌ Connection Failed: ${err.message}`);
+                console.error(err);
+                return false; // Failed
+            }
+        }
+
+        // --- 5. Packet Construction Logic ---
+        function createConfigPacket() {
+            const now = Math.round(Date.now() / 1000); // Unix Timestamp
+            const sampleRateIdx = parseInt(document.getElementById('sampleRate').value);
+            const gain = parseInt(document.getElementById('gain').value);
+            const conf = CONFIGS[sampleRateIdx];
+
+            // Read UI states
+            const energySaver = document.getElementById('chkEnergySaver').checked ? 1 : 0;
+            const disable48Filter = document.getElementById('chkDisable48Filter').checked ? 1 : 0;
+            const lowGainRange = document.getElementById('chkLowGainRange').checked ? 1 : 0;
+            const disableLED = document.getElementById('chkDisableLED').checked ? 0 : 1;
+
+            // Calculate Flags Byte
+            const flags = energySaver | (disable48Filter << 1) | (lowGainRange << 2) | (disableLED << 3);
+
+            // Create 18 Bytes packet (Standard AudioMoth format)
+            const packet = new Uint8Array(18);
+
+            // [0-3] Time (Little Endian)
+            packet[0] = now & 0xFF;
+            packet[1] = (now >> 8) & 0xFF;
+            packet[2] = (now >> 16) & 0xFF;
+            packet[3] = (now >> 24) & 0xFF;
+
+            // [4] Gain
+            packet[4] = gain;
+
+            // [5-7] Clock Config
+            packet[5] = conf.clock;
+            packet[6] = conf.acq;
+            packet[7] = conf.over;
+
+            // [8-11] Base Sample Rate (Little Endian)
+            packet[8] = conf.base & 0xFF;
+            packet[9] = (conf.base >> 8) & 0xFF;
+            packet[10] = (conf.base >> 16) & 0xFF;
+            packet[11] = (conf.base >> 24) & 0xFF;
+
+            // [12] Sample Rate Divider
+            packet[12] = conf.div;
+
+            // [13-16] Filters
+            const filterType = getFilterMode();
+            const valLow = parseInt(document.getElementById('rngLowCutoff').value);
+            const valHigh = parseInt(document.getElementById('rngHighCutoff').value);
+
+            let lowFilter = 0;
+            let highFilter = 0;
+
+            if (filterType === "0") { // Low-pass
+                lowFilter = 0xFFFF;
+                highFilter = Math.round(valHigh / 100);
+            } else if (filterType === "2") { // High-pass
+                lowFilter = Math.round(valLow / 100);
+                highFilter = 0xFFFF;
+            } else if (filterType === "1") { // Band-pass
+                lowFilter = Math.round(valLow / 100);
+                highFilter = Math.round(valHigh / 100);
+            }
+            // Else None (0, 0)
+
+            packet[13] = lowFilter & 0xFF;
+            packet[14] = (lowFilter >> 8) & 0xFF;
+            packet[15] = highFilter & 0xFF;
+            packet[16] = (highFilter >> 8) & 0xFF;
+
+            // [17] Flags
+            packet[17] = flags;
+
+            console.log("Config Packet Constructed:");
+            console.log(`  Flags Byte: 0x${flags.toString(16).toUpperCase()} (ES:${energySaver} 48F:${disable48Filter} LG:${lowGainRange} LED:${disableLED})`);
+            console.log(`  SampleRateIdx: ${sampleRateIdx}, GainIdx: ${gain}`);
+            console.log(`  Packet Hex: ${Array.from(packet).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}`);
+
+            return packet;
+        }
+
+        // --- 6. Write Configuration ---
+        async function writeConfig() {
+            if (!currentDevice) return;
+            log("⏳ Writing configuration...");
+
+            const packet = createConfigPacket();
+
+            try {
+                if (connectionType === 'usb') {
+                    // WebUSB 發送: Control Transfer
+                    await currentDevice.controlTransferOut({
+                        requestType: 'class',
+                        recipient: 'interface',
+                        request: 0x09,
+                        value: 0x0200,
+                        index: 0
+                    }, packet);
+                    log("✅ [USB] 配置發送成功！");
+                }
+                else if (connectionType === 'hid') {
+                    let sendData;
+                    let reportId = 0;
+
+                    // WebHID sendReport(0, data) 會自動補上 ID=0
+                    // 所以 data[0] 就是我們想要設備收到的第一個 Byte (MsgType)
+                    sendData = new Uint8Array(64);
+                    sendData[0] = USB_MSG_TYPE_SET_APP_PACKET;
+                    sendData.set(packet, 1);
+
+                    log(`⏳ 正在發送配置 (ID 0, Payload: [06, Data...], Total 64)...`);
+
+                    try {
+                        await currentDevice.sendReport(reportId, sendData);
+                        log("✅ [HID] 配置寫入指令已發出。");
+                    } catch (e) {
+                        throw new Error(`Write Failed: ${e.message} (ID=${reportId}, Len=${sendData.length})`);
+                    }
+                }
+
+                log(`設定: SR=${CONFIGS[document.getElementById('sampleRate').value].text}, Gain=${document.getElementById('gain').options[document.getElementById('gain').selectedIndex].text}, Flags=0x${packet[17].toString(16).toUpperCase()}`);
+
+            } catch (err) {
+                log(`❌ 寫入失敗: ${err.message}`);
+                console.error(err);
+
+                // 錯誤處理提示 (針對 Windows HID 排他性)
+                if (connectionType === 'usb' && err.message.includes("claim")) {
+                    log("⚠️ 提示: Windows 上無法使用 WebUSB 存取 HID 設備，請改用 [連接 (Windows / WebHID)] 模式。");
+                }
+            }
+        }
+
+        // --- 7. HID 通訊核心 (Based on USB-HID-Tool C Implementation) ---
+        /*
+           參考官方 USB-HID-Tool src/windows/hid.c:
+           - Write: 必須填滿 Output Report Length (通常 64 bytes)
+           - Read: Windows 有時會回傳 Report ID (0x00) 在第一個 byte，需檢查並跳過
+        */
+
+        async function sendGetCommand(msgType) {
+            if (!currentDevice) return;
+            // const useCP2110 = document.getElementById('chkCP2110').checked; // Removed in redesign
+
+            // 準備 64 bytes buffer (模擬 C 的 memset)
+            const sendBuffer = new Uint8Array(64);
+
+            // 根據 WebHID 規範與 Windows 實測:
+            // sendReport(0, data) -> Wire 會看到 [0x00, data[0], data[1]...]
+            // 所以 sendBuffer[0] 必須直接是命令類型 (MsgType)
+
+            sendBuffer[0] = msgType;
+
+            log(`[TX-HID] Cmd: ${hex(msgType)} (WebHID ID 0, Data[0]=${hex(msgType)})`);
+
+            try {
+                // 傳送 Report ID 0 (WebHID API 會自動處理 Report ID)
+                await currentDevice.sendReport(0, sendBuffer);
+            } catch (e) {
+                log(`⚠️ 發送指令失敗: ${e.message}`);
+                console.error(e);
+            }
+        }
+
+        async function refreshDeviceInfo() {
+            if (!currentDevice) return;
+            log("⏳ 同步裝置資訊...");
+
+            // UI 顯示讀取中
+            const ids = ['infoSampleRate', 'infoGain', 'infoFilter', 'infoDeviceId', 'infoFirmwareVersion', 'infoBattery', 'infoEnergySaver', 'infoDCFilter', 'infoLowGain'];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = (id === 'infoDeviceId') ? "Reading..." : "...";
+            });
+
+            // 依序發送指令
+            const commands = [
+                USB_MSG_TYPE_GET_UID,
+                USB_MSG_TYPE_GET_FIRMWARE_DESCRIPTION,
+                USB_MSG_TYPE_GET_FIRMWARE_VERSION,
+                USB_MSG_TYPE_GET_BATTERY,
+                USB_MSG_TYPE_GET_APP_PACKET
+            ];
+
+            for (const cmd of commands) {
+                await sendGetCommand(cmd);
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+
+        // Helper function to parse the config packet and update UI
+        function parseConfigPacket(p) {
+            // p is the 18-byte config packet
+            const sampleRateBase = p[8] | (p[9] << 8) | (p[10] << 16) | (p[11] << 24);
+            const sampleRateDiv = p[12];
+            const gainIdx = p[4];
+            const flags = p[17];
+
+            // 1. Sync Logic REMOVED per user request. 
+            // The Configuration controls are now WRITE-ONLY (Manual selection).
+            // We ONLY update the "Hardware Interface" summary text to show current state.
+
+            // Also update text helper elements for the Hardware Card Summary
+            const sampleRateKhz = (sampleRateBase / sampleRateDiv / 1000).toFixed(0);
+            document.getElementById('infoSampleRate').textContent = sampleRateKhz + "kHz";
+            document.getElementById('infoGain').textContent = GAIN_TEXTS[gainIdx] || "Unknown";
+
+            const lowFilter = p[13] | (p[14] << 8);
+            const highFilter = p[15] | (p[16] << 8);
+
+            let filterText = "None";
+            if (lowFilter === 0 && highFilter === 0) {
+                filterText = "None";
+            } else if (lowFilter === 0xFFFF) {
+                filterText = `Low-pass ${(highFilter * 100 / 1000).toFixed(1)}kHz`;
+            } else if (highFilter === 0xFFFF) {
+                filterText = `High-pass ${(lowFilter * 100 / 1000).toFixed(1)}kHz`;
+            } else {
+                filterText = `Band-pass ${(lowFilter * 100 / 1000).toFixed(1)}-${(highFilter * 100 / 1000).toFixed(1)}kHz`;
+            }
+            document.getElementById('infoFilter').textContent = filterText;
+
+            // 2. Sync Advanced Status Summary
+            document.getElementById('infoEnergySaver').textContent = (flags & 0x01) ? "On" : "Off";
+            document.getElementById('infoDCFilter').textContent = (flags & 0x02) ? "Off" : "On"; // Bit 1 is DISABLE
+            document.getElementById('infoLowGain').textContent = (flags & 0x04) ? "On" : "Off";
+            document.getElementById('infoLEDIndicator').textContent = (flags & 0x08) ? "Off" : "On";
+
+            // console.log("UI Synced with Device State"); // Removed to prevent spam
+        }
+
+        // --- Filter UI Logic ---
+
+        const FILTER_SLIDER_STEPS = { 0: 100, 1: 100, 2: 100, 3: 100, 4: 200, 5: 500, 6: 500, 7: 1000 };
+
+        function getFilterMode() {
+            const radios = document.getElementsByName('filterMode');
+            for (const r of radios) if (r.checked) return r.value;
+            return "3";
+        }
+
+        function updateSampleRateLimits() {
+            const srIdx = parseInt(document.getElementById('sampleRate').value);
+            const config = CONFIGS[srIdx];
+            const maxFreq = config.base / config.div / 2; // Nyquist
+            const step = FILTER_SLIDER_STEPS[srIdx] || 100;
+
+            const rngLow = document.getElementById('rngLowCutoff');
+            const rngHigh = document.getElementById('rngHighCutoff');
+
+            // Update Max and Step
+            rngLow.max = maxFreq;
+            rngLow.step = step;
+            rngHigh.max = maxFreq;
+            rngHigh.step = step;
+
+            document.getElementById('lblMaxCap').textContent = (maxFreq / 1000).toFixed(0) + " kHz";
+
+            // Clamp current values
+            if (parseInt(rngLow.value) > maxFreq) rngLow.value = maxFreq;
+            if (parseInt(rngHigh.value) > maxFreq) rngHigh.value = maxFreq;
+
+            updateFilterLabel();
+        }
+
+        function updateFilterUI() {
+            const mode = getFilterMode();
+            const container = document.getElementById('filterControlContainer');
+            const rngLow = document.getElementById('rngLowCutoff');
+            const rngHigh = document.getElementById('rngHighCutoff');
+
+            // Reset classes
+            container.classList.remove('filter-disabled');
+            rngLow.classList.remove('hide-thumb');
+            rngHigh.classList.remove('hide-thumb');
+            // Remove direct style manipulation of pointerEvents on inputs
+            // Let CSS handle global pointer-events: none on inputs, and auto on thumbs.
+            // Special case: if we want to lock a specific input completely (e.g. Low mode -> rngLow locked), 
+            // we can set pointer-events: none on the THUMB via class if needed, or just let strict value locking handle it.
+            // But user asked to HIDE handle, so hiding implies no interaction.
+
+            if (mode === "3") { // None
+                container.classList.add('filter-disabled');
+            } else if (mode === "0") { // Low-pass (Hide Low handle, lock to 0)
+                rngLow.value = 0;
+                rngLow.classList.add('hide-thumb');
+                rngLow.style.pointerEvents = 'none';
+            } else if (mode === "2") { // High-pass (Hide High handle, lock to Max)
+                rngHigh.value = rngHigh.max;
+                rngHigh.classList.add('hide-thumb');
+                rngHigh.style.pointerEvents = 'none';
+            }
+            // else Band: Both visible and enabled
+
+            updateFilterLabel();
+        }
+
+        function updateFilterLabel(source) {
+            const rngLow = document.getElementById('rngLowCutoff');
+            const rngHigh = document.getElementById('rngHighCutoff');
+            const lblDesc = document.getElementById('lblFilterDesc');
+            const highlight = document.getElementById('sliderHighlight');
+            const mode = getFilterMode();
+
+            let valLow = parseInt(rngLow.value);
+            let valHigh = parseInt(rngHigh.value);
+
+            // Constraint: Low <= High
+            if (valLow > valHigh) {
+                if (source === 'low') {
+                    rngHigh.value = valLow;
+                    valHigh = valLow;
+                } else {
+                    rngLow.value = valHigh;
+                    valLow = valHigh;
+                }
+            }
+
+            // Calculate Pixel Offset logic to align Highlight Bar with Thumbs perfectly
+            // Formula: Center = (Val - Min)/(Max - Min) * (TrackWidth - ThumbWidth) + (ThumbWidth / 2)
+
+            const trackWidth = document.getElementById('dualSliderWrapper').offsetWidth;
+            const thumbWidth = 16;  // Updated to match CSS
+            const max = parseInt(rngLow.max);
+            const min = parseInt(rngLow.min);
+
+            // Normalized Position (0.0 - 1.0)
+            const normLow = (valLow - min) / (max - min);
+            const normHigh = (valHigh - min) / (max - min);
+
+            // Pixel Centers
+            let pxLow = normLow * (trackWidth - thumbWidth) + (thumbWidth / 2);
+            let pxHigh = normHigh * (trackWidth - thumbWidth) + (thumbWidth / 2);
+
+            // SPECIAL CASE: If handle is hidden, extend the highlight bar to the very edge (0 or 100%)
+            if (mode === "0") { // Low-pass (Low handle hidden at 0)
+                pxLow = 0;
+            } else if (mode === "2") { // High-pass (High handle hidden at Max)
+                pxHigh = trackWidth;
+            }
+
+            // Convert back to Percent for CSS
+            const leftPerc = (pxLow / trackWidth) * 100;
+            const widthPerc = ((pxHigh - pxLow) / trackWidth) * 100;
+
+            highlight.style.left = leftPerc + "%";
+            highlight.style.width = widthPerc + "%";
+
+            // Update Description
+            if (mode === "3") {
+                lblDesc.textContent = "Recordings will not be filtered.";
+            } else if (mode === "0") {
+                lblDesc.textContent = `Frequencies below ${(valHigh / 1000).toFixed(1)} kHz will be recorded.`;
+            } else if (mode === "2") {
+                lblDesc.textContent = `Frequencies above ${(valLow / 1000).toFixed(1)} kHz will be recorded.`;
+            } else {
+                lblDesc.textContent = `Frequencies between ${(valLow / 1000).toFixed(1)} and ${(valHigh / 1000).toFixed(1)} kHz will be recorded.`;
+            }
+        }
+
+        function handleInputReport(e) {
+            const raw = new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength);
+
+            // console.log(`[RX-RAW] ID: ${e.reportId} Len: ${raw.length}`, raw);
+
+            let dataPayload;
+
+            // 根據 audiomoth-hid.js 與 USB-HID-Tool windows/hid.c 分析:
+            // Windows 上若 Report ID 為 0，讀取到的 Buffer 第一個 byte 為 0x00
+            // hid.c 會跳過這個 byte。
+            // 我們在此模擬該行為：檢查首字節是否為 0x00，若是則跳過。
+
+            if (raw.length > 0 && raw[0] === 0x00) {
+                dataPayload = raw.slice(1);
+            } else {
+                dataPayload = raw;
+            }
+
+            if (dataPayload.length === 0) return;
+
+            const msgType = dataPayload[0];
+            // log(`[RX-DEC] Type: ${hex(msgType)} Len: ${dataPayload.length}`);
+
+            switch (msgType) {
+                case USB_MSG_TYPE_GET_UID:
+                    const uidParts = [];
+                    for (let i = 8; i >= 1; i--) {
+                        if (i < dataPayload.length) {
+                            uidParts.push(('0' + dataPayload[i].toString(16)).slice(-2).toUpperCase());
+                        }
+                    }
+                    const newUid = uidParts.join('');
+                    const uidEl = document.getElementById('infoDeviceId');
+                    if (uidEl.textContent !== newUid) {
+                        uidEl.textContent = newUid;
+                        log("ℹ️ Device ID updated: " + newUid);
+                    }
+                    break;
+
+                case USB_MSG_TYPE_GET_FIRMWARE_DESCRIPTION:
+                    let desc = "";
+                    for (let i = 1; i < dataPayload.length; i++) {
+                        if (dataPayload[i] === 0) break;
+                        desc += String.fromCharCode(dataPayload[i]);
+                    }
+                    const descEl = document.getElementById('infoFirmwareDesc');
+                    if (descEl && descEl.textContent !== desc) {
+                        descEl.textContent = desc || "Unknown";
+                        log("ℹ️ Firmware description updated: " + desc);
+                    }
+                    break;
+
+                case USB_MSG_TYPE_GET_FIRMWARE_VERSION:
+                    if (dataPayload.length >= 4) {
+                        const newVer = `${dataPayload[1]}.${dataPayload[2]}.${dataPayload[3]}`;
+                        const verEl = document.getElementById('infoFirmwareVersion');
+                        if (verEl.textContent !== newVer) {
+                            verEl.textContent = newVer;
+                            log("ℹ️ Firmware version updated: " + newVer);
+                        }
+                    }
+                    break;
+
+                case USB_MSG_TYPE_GET_BATTERY:
+                    if (dataPayload.length >= 2) {
+                        const b = dataPayload[1];
+                        let batteryText = "";
+                        if (b === 0) batteryText = "< 3.6V";
+                        else if (b === 15) batteryText = "> 4.9V";
+                        else batteryText = (3.5 + b / 10).toFixed(1) + "V";
+
+                        const batEl = document.getElementById('infoBattery');
+                        if (batEl.textContent !== batteryText) {
+                            batEl.textContent = batteryText;
+                            log("ℹ️ Battery status: " + batteryText);
+                        }
+                    }
+                    break;
+
+                case USB_MSG_TYPE_GET_APP_PACKET:
+                    // Silent update UI
+                    parseConfigPacket(dataPayload.slice(1));
+                    break;
+            }
+        }
+
+        // --- 8. 偵錯輔助函數 ---
+        function hex(n) {
+            return "0x" + n.toString(16).toUpperCase();
+        }
+
+        // --- 9. 環境偵測與智慧連線 (Smart Connection) ---
+        async function runSmartConnection() {
+            const ua = navigator.userAgent;
+            const isChrome = /Chrome/.test(ua) && /Google/.test(navigator.vendor);
+            const isAndroid = /Android/.test(ua);
+            const isWindows = /Windows/.test(ua);
+            let autoConnected = false;
+
+            log(`🌐 偵測環境: ${isAndroid ? 'Android' : (isWindows ? 'Windows' : 'Other')} | ${isChrome ? 'Chrome' : '非 Chrome'}`);
+
+            if (!isChrome) {
+                alert("⚠️ 偵測到非 Chrome 核心瀏覽器。為了確保 WebUSB/WebHID 能正常操作 AudioMoth，建議切換至 Google Chrome 瀏覽器。");
+                log("⚠️ 警告: 非 Chrome 核心可能無法連線。");
+            }
+
+            // 更新 UI 推薦標記
+            if (isAndroid) {
+                document.getElementById('btnWebUSB').textContent += " (Recommended)";
+                document.getElementById('usbHint').style.color = "#1a73e8";
+                document.getElementById('usbHint').style.fontWeight = "bold";
+
+                // 嘗試自動連線 (需先前有配對)
+                if (navigator.usb) {
+                    const paired = await navigator.usb.getDevices();
+                    if (paired.length > 0) {
+                        const target = paired.find(d => d.vendorId === DEFAULT_VID);
+                        if (target) autoConnected = await connect('usb', false, target);
+                    }
+                }
+            } else if (isWindows) {
+                document.getElementById('btnWebHID').textContent += " (Recommended)";
+                document.getElementById('hidHint').style.color = "#1a73e8";
+                document.getElementById('hidHint').style.fontWeight = "bold";
+
+                // 嘗試自動連線 (需先前有配對)
+                if (navigator.hid) {
+                    const paired = await navigator.hid.getDevices();
+                    if (paired.length > 0) {
+                        const target = paired.find(d => d.vendorId === DEFAULT_VID || d.vendorId === 0x10C4);
+                        if (target) autoConnected = await connect('hid', false, target);
+                    }
+                }
+            }
+
+            // 如果自動連線失敗或未曾配對，才顯現連線 UI
+            if (!autoConnected) {
+                document.getElementById('connectionSection').style.display = ''; // Clear inline to use CSS (flex)
+                log("ℹ️ 提示: 未發現已配對裝置，請手動點擊按鈕連接。");
+            } else {
+                document.getElementById('connectionSection').style.display = 'none'; // Ensure hidden on success
+                log("✨ 智慧連線已自動恢復通訊。");
+            }
+        }
+
+        window.onload = function () {
+            runSmartConnection();
+            updateSampleRateLimits();
+            updateFilterUI();
+        };
+    </script>
+</body>
+
+</html>
