@@ -777,10 +777,17 @@
                     }
 
                     await device.open();
-                    await device.claimInterface(0);
+
+                    try {
+                        await device.claimInterface(0);
+                        log("✅ USB Connected: Interface claimed.");
+                    } catch (interfaceErr) {
+                        log(`⚠️ USB Interface Access Limited: ${interfaceErr.message}`);
+                        log("💡 This is normal on mobile. Control transfers will still be attempted.");
+                    }
+
                     currentDevice = device;
                     connectionType = 'usb';
-                    log(`✅ USB Connected: ${device.productName || 'Device'}`);
 
                     setConnectedState(true);
                     return true;
