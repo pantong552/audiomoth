@@ -511,10 +511,8 @@
                 <!-- Connection Section Moved to Bottom -->
                 <div id="connectionSection" class="btn-group"
                     style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                    <button id="btnWebUSB" onclick="connect('usb')" title="For Android Chrome (OTG Cable)">🔗 Connect
-                        (WebUSB)</button>
-                    <button id="btnWebHID" class="secondary" onclick="connect('hid')" title="For Windows/Mac Chrome">💻
-                        Connect (WebHID)</button>
+                    <button id="btnConnect" onclick="connect('hid')" title="Connect via WebHID/App Native">🔗 Connect
+                        Device</button>
                     <button class="secondary" onclick="connect('hid', true)"
                         style="font-size: 10px; padding: 8px; margin-top: 4px; opacity: 0.7;">🔍 Manual Connect
                         (Adv)</button>
@@ -523,9 +521,7 @@
                 <div style="display:none;">
                     <input type="text" id="manualVID" value="16D0">
                     <input type="text" id="manualPID" value="1052">
-                    <div id="usbHint"></div>
                     <div id="hidHint"></div>
-                    <!-- connectionSection removed to avoid duplicate ID -->
                 </div>
             </div>
 
@@ -714,13 +710,14 @@
 
 
         function setConnectedState(isConnected) {
-            document.getElementById('btnWebUSB').disabled = isConnected;
-            document.getElementById('btnWebHID').disabled = isConnected;
-            // Also disabled manual connect button if possible, but currently no ID for it
+            const btnConnect = document.getElementById('btnConnect');
+            if (btnConnect) btnConnect.disabled = isConnected;
+
             const manualBtn = document.querySelector('button[onclick*="hid\', true"]');
             if (manualBtn) manualBtn.disabled = isConnected;
 
-            document.getElementById('btnWrite').disabled = !isConnected;
+            const btnWrite = document.getElementById('btnWrite');
+            if (btnWrite) btnWrite.disabled = !isConnected;
 
             const statusEl = document.getElementById('deviceConnectionStatus');
             const refreshBtn = document.getElementById('btnRefresh');
@@ -742,84 +739,42 @@
         async function connect(type, isManual = false, preSelectedDevice = null) {
             clearLog();
             try {
-                let checkVID = DEFAULT_VID;
-                let checkPID = DEFAULT_PID;
+                const mVID = parseInt(document.getElementById('manualVID').value, 16);
+                const mPID = parseInt(document.getElementById('manualPID').value, 16);
 
-                if (isManual) {
-                    // ... 手動模式邏輯維持不變 ...
+                if (!navigator.hid) throw new Error("This browser does not support WebHID");
+
+                let device;
+                if (preSelectedDevice) {
+                    device = preSelectedDevice;
+                    log("♻️ Auto-reconnecting paired device...");
+                } else {
+                    log("Requesting device permission...");
+                    let filters = isManual ? (mPID ? [{ vendorId: mVID, productId: mPID }] : [{ vendorId: mVID }]) : [
+                        { vendorId: 0x16D0, productId: 0x1052 }, // AudioMoth Default
+                        { vendorId: 0x16D0 },                   // AudioMoth Vendor Any
+                        { vendorId: 0x10C4 }                    // Silicon Labs
+                    ];
+                    const devices = await navigator.hid.requestDevice({ filters: filters });
+                    if (devices.length === 0) throw new Error("No device selected");
+                    device = devices[0];
                 }
 
-                if (type === 'usb') {
-                    if (!navigator.usb) throw new Error("This browser does not support WebUSB");
+                log(`Opening device: ${device.productName || 'Device'}...`);
+                await device.open();
+                currentDevice = device;
+                connectionType = 'hid';
+                log(`✅ Connected: ${device.productName}`);
 
-                    if (preSelectedDevice) {
-                        device = preSelectedDevice;
-                        log("♻️ Auto-reconnecting paired USB device...");
-                    } else {
-                        log("Requesting USB permission (Enhanced Filters)...");
+                setConnectedState(true);
 
-                        // Use a filter list similar to WebHID's approach
-                        let filters = [
-                            { vendorId: 0x16D0, productId: 0x1052 }, // AudioMoth Default
-                            { vendorId: 0x16D0 },                   // AudioMoth Vendor Any
-                            { vendorId: 0x10C4 }                    // Silicon Labs (used in some variants)
-                        ];
-
-                        // Add manual overrides if available
-                        const mVID = parseInt(document.getElementById('manualVID').value, 16);
-                        const mPID = parseInt(document.getElementById('manualPID').value, 16);
-                        if (!isNaN(mVID)) {
-                            log(`Adding manual USB filter - VID: 0x${mVID.toString(16).toUpperCase()}`);
-                            filters.unshift(mPID ? { vendorId: mVID, productId: mPID } : { vendorId: mVID });
-                        }
-
-                        device = await navigator.usb.requestDevice({ filters: filters });
-                    }
-
-                    await device.open();
-                    await device.claimInterface(0);
-                    currentDevice = device;
-                    connectionType = 'usb';
-                    log(`✅ USB Connected: ${device.productName || 'Device'}`);
-
-                    setConnectedState(true);
-                    return true;
+                if (device.vendorId === 0x10C4) {
+                    log("✨ Silicon Labs optimized protocol auto-configured.");
                 }
-                else if (type === 'hid') {
-                    if (!navigator.hid) throw new Error("This browser does not support WebHID");
 
-                    let device;
-                    if (preSelectedDevice) {
-                        device = preSelectedDevice;
-                        log("♻️ Auto-reconnecting paired HID device...");
-                    } else {
-                        log("Requesting HID permission...");
-                        let filters = isManual ? [{ vendorId: checkVID }] : [
-                            { vendorId: 0x16D0, productId: 0x1052 },
-                            { vendorId: 0x16D0 },
-                            { vendorId: 0x10C4 }
-                        ];
-                        const devices = await navigator.hid.requestDevice({ filters: filters });
-                        if (devices.length === 0) throw new Error("No device selected");
-                        device = devices[0];
-                    }
-
-                    log(`Opening device: ${device.productName || 'HID Device'}...`);
-                    await device.open();
-                    currentDevice = device;
-                    connectionType = 'hid';
-                    log(`✅ HID Connected: ${device.productName}`);
-
-                    setConnectedState(true);
-
-                    if (device.vendorId === 0x10C4) {
-                        log("✨ Silicon Labs optimized protocol auto-configured.");
-                    }
-
-                    device.addEventListener("inputreport", handleInputReport);
-                    refreshDeviceInfo();
-                    return true; // 連線成功
-                }
+                device.addEventListener("inputreport", handleInputReport);
+                refreshDeviceInfo();
+                return true;
             } catch (err) {
                 log(`❌ Connection Failed: ${err.message}`);
                 console.error(err);
@@ -913,47 +868,27 @@
             const packet = createConfigPacket();
 
             try {
-                if (connectionType === 'usb') {
-                    // WebUSB 發送: Control Transfer
-                    await currentDevice.controlTransferOut({
-                        requestType: 'class',
-                        recipient: 'interface',
-                        request: 0x09,
-                        value: 0x0200,
-                        index: 0
-                    }, packet);
-                    log("✅ [USB] 配置發送成功！");
-                }
-                else if (connectionType === 'hid') {
+                if (connectionType === 'hid') {
                     let sendData;
                     let reportId = 0;
 
-                    // WebHID sendReport(0, data) 會自動補上 ID=0
-                    // 所以 data[0] 就是我們想要設備收到的第一個 Byte (MsgType)
+                    // WebHID sendReport(0, data)
                     sendData = new Uint8Array(64);
                     sendData[0] = USB_MSG_TYPE_SET_APP_PACKET;
                     sendData.set(packet, 1);
 
-                    log(`⏳ 正在發送配置 (ID 0, Payload: [06, Data...], Total 64)...`);
+                    log(`⏳ Sending configuration...`);
 
                     try {
                         await currentDevice.sendReport(reportId, sendData);
-                        log("✅ [HID] 配置寫入指令已發出。");
+                        log("✅ Configuration written successfully.");
                     } catch (e) {
-                        throw new Error(`Write Failed: ${e.message} (ID=${reportId}, Len=${sendData.length})`);
+                        throw new Error(`Write Failed: ${e.message}`);
                     }
                 }
-
-                log(`設定: SR=${CONFIGS[document.getElementById('sampleRate').value].text}, Gain=${document.getElementById('gain').options[document.getElementById('gain').selectedIndex].text}, Flags=0x${packet[17].toString(16).toUpperCase()}`);
-
             } catch (err) {
                 log(`❌ 寫入失敗: ${err.message}`);
                 console.error(err);
-
-                // 錯誤處理提示 (針對 Windows HID 排他性)
-                if (connectionType === 'usb' && err.message.includes("claim")) {
-                    log("⚠️ 提示: Windows 上無法使用 WebUSB 存取 HID 設備，請改用 [連接 (Windows / WebHID)] 模式。");
-                }
             }
         }
 
@@ -1283,49 +1218,49 @@
             const isWindows = /Windows/.test(ua);
             let autoConnected = false;
 
-            log(`🌐 偵測環境: ${isAndroid ? 'Android' : (isWindows ? 'Windows' : 'Other')} | ${isChrome ? 'Chrome' : '非 Chrome'}`);
+            log(`🌐 Detector: ${isAndroid ? 'Android' : (isWindows ? 'Windows' : 'Other')} | ${isChrome ? 'Chrome' : 'Non-Chrome'}`);
 
             if (!isChrome) {
-                alert("⚠️ 偵測到非 Chrome 核心瀏覽器。為了確保 WebUSB/WebHID 能正常操作 AudioMoth，建議切換至 Google Chrome 瀏覽器。");
-                log("⚠️ 警告: 非 Chrome 核心可能無法連線。");
+                alert("⚠️ Non-Chrome browser detected. Please use Google Chrome for full WebHID support.");
+                log("⚠️ Warning: Connection might not work on this browser.");
             }
 
-            // 更新 UI 推薦標記
-            if (isAndroid) {
-                document.getElementById('btnWebUSB').textContent += " (Recommended)";
-                document.getElementById('usbHint').style.color = "#1a73e8";
-                document.getElementById('usbHint').style.fontWeight = "bold";
+            log("🚀 Running system checks...");
 
-                // 嘗試自動連線 (需先前有配對)
-                if (navigator.usb) {
-                    const paired = await navigator.usb.getDevices();
-                    if (paired.length > 0) {
-                        const target = paired.find(d => d.vendorId === DEFAULT_VID);
-                        if (target) autoConnected = await connect('usb', false, target);
-                    }
-                }
-            } else if (isWindows) {
-                document.getElementById('btnWebHID').textContent += " (Recommended)";
-                document.getElementById('hidHint').style.color = "#1a73e8";
-                document.getElementById('hidHint').style.fontWeight = "bold";
+            // 更新 UI 推薦標記 (統一建議 HID)
+            const btnConnect = document.getElementById('btnConnect');
+            if (btnConnect) btnConnect.textContent += " (Recommended)";
 
-                // 嘗試自動連線 (需先前有配對)
-                if (navigator.hid) {
+            const hidHint = document.getElementById('hidHint');
+            if (hidHint) {
+                hidHint.style.color = "#1a73e8";
+                hidHint.style.fontWeight = "bold";
+            }
+
+            // 嘗試自動恢復先前配對過的 HID 裝置
+            if (navigator.hid) {
+                try {
                     const paired = await navigator.hid.getDevices();
                     if (paired.length > 0) {
                         const target = paired.find(d => d.vendorId === DEFAULT_VID || d.vendorId === 0x10C4);
-                        if (target) autoConnected = await connect('hid', false, target);
+                        if (target) {
+                            log("♻️ Attempting to restore paired connection...");
+                            autoConnected = await connect(null, false, target);
+                        }
                     }
+                } catch (e) {
+                    console.warn("Smart connection skip:", e);
                 }
             }
 
             // 如果自動連線失敗或未曾配對，才顯現連線 UI
+            const connSection = document.getElementById('connectionSection');
             if (!autoConnected) {
-                document.getElementById('connectionSection').style.display = ''; // Clear inline to use CSS (flex)
-                log("ℹ️ 提示: 未發現已配對裝置，請手動點擊按鈕連接。");
+                if (connSection) connSection.style.display = '';
+                log("ℹ️ Tips: No paired device found, please click [Connect Device].");
             } else {
-                document.getElementById('connectionSection').style.display = 'none'; // Ensure hidden on success
-                log("✨ 智慧連線已自動恢復通訊。");
+                if (connSection) connSection.style.display = 'none';
+                log("✨ Smart connection restored.");
             }
         }
 
